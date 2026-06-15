@@ -54,12 +54,11 @@
     </div>
 
     <script type="module">
-        // Realtime Database 호환 모듈로 변경 완료
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { getDatabase, ref, push, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-        // 성준님의 Firebase 정보
+        // 성준님의 고유 Firebase 정보
         const firebaseConfig = {
             apiKey: "AIzaSyCKGM1IiAYUWnptZeds-GZ2k6Ocp0kZCAg",
             authDomain: "test-9e768.firebaseapp.com",
@@ -73,7 +72,7 @@
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
-        const db = getDatabase(app); // Realtime DB 객체로 연결
+        const db = getDatabase(app);
         const provider = new GoogleAuthProvider();
 
         let currentUser = null;
@@ -90,13 +89,14 @@
         const btnTts = document.getElementById('btn-tts');
         const historyList = document.getElementById('history-list');
 
+        // 상태 감지 함수가 가장 먼저 안정적으로 돌아가도록 배치
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 currentUser = user;
                 authSection.classList.add('hidden');
                 appSection.classList.remove('hidden');
                 userInfo.textContent = `✈️ ${user.displayName} 여행자님`;
-                loadTravelHistory(); // 데이터 자동 동기화 시작
+                loadTravelHistory();
             } else {
                 currentUser = null;
                 authSection.classList.remove('hidden');
@@ -104,16 +104,23 @@
             }
         });
 
+        // 로그인 버튼 활성화
         btnLogin.addEventListener('click', () => {
-            signInWithPopup(auth, provider).catch((err) => console.error(err));
+            signInWithPopup(auth, provider)
+                .then((result) => {
+                    console.log("로그인 성공:", result.user);
+                })
+                .catch((err) => {
+                    console.error("로그인 에러 상세:", err);
+                    alert("로그인 중 에러가 발생했습니다. 브라우저의 팝업 차단을 확인해 보세요!");
+                });
         });
 
         btnLogout.addEventListener('click', () => {
-            signOut(auth);
+            signOut(auth).catch((err) => console.error(err));
         });
 
         async function fetchAIAdvice(travelText) {
-            // 성준님이 입력한 텍스트를 기반으로 맞춤형 가이드 문장 자동 생성
             return `🎯 AI 가이드 추천: "${travelText}" 계획은 아주 훌륭합니다! 근처의 숨겨진 로컬 맛집을 탐방해 보시고, 이동 동선을 고려해 야경 명소도 꼭 추가해 보세요. 즐겁고 안전한 여행이 되시길 바랍니다!`;
         }
 
@@ -128,7 +135,6 @@
             aiResponse.textContent = aiReply;
             aiResultBox.classList.remove('hidden');
 
-            // Realtime Database에 안전하게 쓰기 수행
             try {
                 const travelListRef = ref(db, 'travels/' + currentUser.uid);
                 const newTravelRef = push(travelListRef);
@@ -140,14 +146,12 @@
                 travelInput.value = "";
             } catch (e) {
                 console.error("데이터 저장 실패:", e);
-                alert("저장에 실패했습니다. 데이터베이스 규칙을 확인해 보세요.");
             }
 
             btnAnalyze.disabled = false;
             btnAnalyze.textContent = "AI 여행 팁 받기 & 저장";
         });
 
-        // 실시간으로 데이터 가져오기 기능
         function loadTravelHistory() {
             const travelListRef = ref(db, 'travels/' + currentUser.uid);
             onValue(travelListRef, (snapshot) => {
@@ -159,7 +163,6 @@
                     return;
                 }
 
-                // 최신순 정렬을 위해 배열로 변환
                 const items = Object.values(data).sort((a, b) => b.createdAt - a.createdAt);
 
                 items.forEach((item) => {
