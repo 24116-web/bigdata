@@ -59,16 +59,16 @@
         import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { getDatabase, ref, push, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-        // Firebase 연동 설정
-        const firebaseConfig = {
-            apiKey: "AIzaSyCKGM1IiAYUWnptZeds-GZ2k6Ocp0kZCAg", 
-            authDomain: "test-9e768.firebaseapp.com",
-            databaseURL: "https://test-9e768-default-rtdb.firebaseio.com",
-            projectId: "test-9e768",
-            storageBucket: "test-9e768.firebasestorage.app",
-            messagingSenderId: "596219879122",
-            appId: "1:596219879122:web:592884a57bd6fb9fc3570b",
-            measurementId: "G-48T5D8FHTN"
+        // Firebase 연동 설정 (틀린 키는 본인 진짜 키로 바꿔서 확인하세요!)
+              const firebaseConfig = {
+          apiKey: "AIzaSyCKGMlIiAYUWnptZeds-GZ2k6Ocp0kZCAg",
+          authDomain: "test-9e768.firebaseapp.com",
+          databaseURL: "https://test-9e768-default-rtdb.firebaseio.com",
+          projectId: "test-9e768",
+          storageBucket: "test-9e768.firebasestorage.app",
+          messagingSenderId: "596219879122",
+          appId: "1:596219879122:web:592884a57bd6fb9fc3570b",
+          measurementId: "G-48T5D8FHTN"
         };
 
         const app = initializeApp(firebaseConfig);
@@ -90,7 +90,7 @@
         const btnTts = document.getElementById('btn-tts');
         const historyList = document.getElementById('history-list');
 
-        // [조건 3] Authentication 상태 감지
+        // [조건 3] 로그인 상태 감지
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 currentUser = user;
@@ -105,7 +105,6 @@
             }
         });
 
-        // 구글 로그인 실행
         btnLogin.addEventListener('click', () => {
             signInWithPopup(auth, provider).catch((err) => console.error(err));
         });
@@ -114,10 +113,10 @@
             signOut(auth);
         });
 
-        // [조건 4] 생성형 AI 연동 (Gemini 1.5 Flash API 실시간 호출)
+        // [조건 4] Gemini AI 연동
         async function fetchAIAdvice(travelText) {
-            // ⚠️ 성준님의 진짜 Gemini API 키를 아래 빈칸에 넣어주세요!
-            const GEMINI_API_KEY = "여기에_성준님의_진짜_Gemini_API_키를_넣으세요"; 
+            // 🔑 1. 여기에 성준님의 진짜 Gemini AI 키를 넣어주세요!
+            const GEMINI_API_KEY = "AIzaSyBdKNUOITlrUxHDfyZppb70mTfaoSR6_aA"; 
 
             try {
                 const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
@@ -133,11 +132,11 @@
                 return data.candidates[0].content.parts[0].text;
             } catch (e) {
                 console.error("AI 연동 오류:", e);
-                return `🎯 AI 가이드 추천: "${travelText}" 계획은 아주 좋습니다! 주변 로컬 맛집 투어와 야경 명소를 일정에 추가해 더 풍성한 여행을 만들어 보세요!`;
+                return `🎯 AI 가이드 추천: "${travelText}" 계획은 아주 좋습니다! 주변 맛집 투어와 야경 명소를 일정에 추가해 보세요!`;
             }
         }
 
-        // AI 분석 및 데이터베이스 저장 처리
+        // AI 분석 버튼 누르면 작동하는 핵심 로직
         btnAnalyze.addEventListener('click', async () => {
             const text = travelInput.value.trim();
             if (!text) return alert("여행지나 계획을 입력해 주세요!");
@@ -145,12 +144,13 @@
             btnAnalyze.disabled = true;
             btnAnalyze.textContent = "AI 가이드 분석 중...";
 
+            // 1) AI 답변 가져오기
             const aiReply = await fetchAIAdvice(text);
             aiResponse.textContent = aiReply;
             aiResultBox.classList.remove('hidden');
 
+            // 2) Firebase 리얼타임 DB에 저장
             try {
-                // [조건 2] 데이터베이스 저장
                 const travelListRef = ref(db, 'travels/' + currentUser.uid);
                 const newTravelRef = push(travelListRef);
                 await set(newTravelRef, {
@@ -159,30 +159,42 @@
                     createdAt: Date.now()
                 });
             } catch (e) {
-                console.error("데이터 저장 실패:", e);
+                console.error("Firebase 저장 실패:", e);
             }
 
-            // 안전한 텍스트 리셋 흐름 제어 추가
-            if (travelInput) {
-                travelInput.value = "";
+            // 3) 구글 스프레드시트(앱 스크립트)로 데이터 전송하기
+            try {
+                // 🔑 2.여기에 구글 앱스 스크립트 배포 후 받은 웹앱 URL 주소를 넣어주세요!
+                const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwaqhJblR-ts-fvx9Q1u8vC6jmw1P-qTh92RONHwKIG6EprrK7syQO_8fxJUX34MUw/exec"; 
+                
+                await fetch(APPS_SCRIPT_URL, {
+                    method: "POST",
+                    contentType: "application/json",
+                    body: JSON.stringify({
+                        userEmail: currentUser.email,
+                        content: text,
+                        aiReply: aiReply
+                    })
+                });
+            } catch (e) {
+                console.error("구글 시트 전송 실패:", e);
             }
 
+            if (travelInput) travelInput.value = "";
             btnAnalyze.disabled = false;
             btnAnalyze.textContent = "AI 여행 팁 받기 & 저장";
         });
 
-        // 데이터베이스 실시간 로드
+        // 리얼타임 DB에서 데이터 가져오기
         function loadTravelHistory() {
             const travelListRef = ref(db, 'travels/' + currentUser.uid);
             onValue(travelListRef, (snapshot) => {
                 historyList.innerHTML = "";
                 const data = snapshot.val();
-                
                 if (!data) {
                     historyList.innerHTML = `<p class="text-xs text-gray-400 text-center py-2">아직 기록된 여행이 없습니다.</p>`;
                     return;
                 }
-
                 const items = Object.values(data).sort((a, b) => b.createdAt - a.createdAt);
                 items.forEach((item) => {
                     const div = document.createElement('div');
@@ -196,21 +208,14 @@
             });
         }
 
-        // 🔊 [조건 5] TTS(음성 출력) 기능 이벤트 연결 오류 수정 완료
+        // [조건 5] TTS(음성 출력) 기능 구현
         btnTts.addEventListener('click', () => {
             const textToSpeak = aiResponse.textContent || aiResponse.innerText;
-            if (!textToSpeak) {
-                alert("읽어드릴 AI 답변 내용이 없습니다!");
-                return;
-            }
+            if (!textToSpeak) return alert("읽어드릴 AI 답변 내용이 없습니다!");
             
-            // 다른 음성이 재생 중이면 겹치지 않게 취소
-            window.speechSynthesis.cancel();
-            
+            window.speechSynthesis.cancel(); // 이전 재생 취소
             const utterance = new SpeechSynthesisUtterance(textToSpeak);
-            utterance.lang = 'ko-KR'; // 한국어 설정
-            utterance.rate = 1.0;     // 보통 속도
-            
+            utterance.lang = 'ko-KR';
             window.speechSynthesis.speak(utterance);
         });
     </script>
